@@ -1,0 +1,26 @@
+# Core data handling
+numpy
+pandas
+
+# Visualization
+matplotlib
+seaborn
+
+# NLP preprocessing (notebook 01)
+nltk
+
+# Classical ML (notebook 02)
+scikit-learn
+joblib
+
+# Deep learning - ANN/BiLSTM (notebook 03)
+tensorflow
+keras
+
+# Transformer fine-tuning (notebook 04)
+torch
+transformers
+datasets
+accelerate
+evaluate
+optuna
