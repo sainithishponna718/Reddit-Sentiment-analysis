@@ -1,268 +1,72 @@
-# Reddit Sentiment Analysis using Machine Learning and Deep Learning
-
-## Overview
-
-This project presents an end-to-end Natural Language Processing (NLP) pipeline for sentiment classification of Reddit comments. The workflow covers data preprocessing, exploratory data analysis, feature engineering, traditional machine learning models, and deep learning architectures for multi-class sentiment prediction.
-
-The primary objective is to compare classical machine learning approaches with deep learning models and identify the most effective solution for sentiment analysis.
-
----
-
-## Project Structure
-
-```text
-├── 01_eda_preprocessing.ipynb
-├── 02_baseline_model.ipynb
-├── 03_deeplearning_models.ipynb
-├── README.md
-└── requirements.txt
-```
-
----
-
+# Reddit Comment Sentiment Analysis
+ 
+A four-part project exploring sentiment classification on Reddit comments, progressing from classical ML through deep learning to fine-tuned transformers — comparing approaches on the same dataset to see how much each step up in model sophistication actually buys you.
+ 
 ## Dataset
-
-The dataset consists of Reddit comments labeled into three sentiment categories:
-
-- Negative
-- Neutral
-- Positive
-
-The project includes extensive preprocessing to transform noisy user-generated text into a format suitable for machine learning and deep learning models.
-
----
-
-## Data Preprocessing
-
-The preprocessing pipeline includes:
-
-- Handling missing values
-- Removing duplicate records
-- Text cleaning and normalization
-- Lowercasing
-- Tokenization
-
-All preprocessing steps are documented in:
-
-```text
-01_eda_preprocessing.ipynb
+ 
+[Reddit Sentiment Analysis dataset](https://github.com/Himanshu-1703/reddit-sentiment-analysis) — ~37k Reddit comments labeled across three sentiment classes:
+ 
+| Label | Category | Share |
+|---|---|---|
+| `-1` | Negative | ~22% |
+| `0` | Neutral | ~35% |
+| `1` | Positive | ~43% |
+ 
+**Note on data quality:** the `clean_comment` column was already stopword-stripped by the original dataset author before this project began (verified directly against the upstream source). This is a known constraint, especially for the transformer stage — transformers benefit most from natural sentence structure, and that wasn't fully available here.
+ 
+## Project structure
+ 
+| Notebook | Description |
+|---|---|
+| `01_eda_preprocessing.ipynb` | Data cleaning (nulls, duplicates, whitespace), exploratory analysis, stopword removal (preserving negation words like "not"), lemmatization |
+| `02_baseline_model.ipynb` | TF-IDF + classical ML models (Naive Bayes, Logistic Regression, Random Forest, Linear SVM), GridSearchCV tuning |
+| `03_deeplearning_models.ipynb` | Keras Tokenizer + embeddings, feedforward ANN (with and without class weighting), Bidirectional LSTM |
+| `04_transformer_finetuning.ipynb` | DistilBERT fine-tuning (PyTorch + Hugging Face `Trainer`), Optuna hyperparameter search |
+ 
+## Results
+ 
+| Model | Accuracy | Macro F1 |
+|---|---|---|
+| Linear SVM (TF-IDF, tuned) | 0.86 | 0.84 |
+| ANN | 0.84 | 0.82 |
+| ANN (class-weighted) | 0.84 | 0.83 |
+| Bidirectional LSTM | 0.84 | 0.83 |
+| DistilBERT (baseline) | 0.93 | 0.92 |
+| **DistilBERT (Optuna-tuned)** | **0.94** | **0.93** |
+ 
+Fine-tuned DistilBERT outperforms every classical and from-scratch deep learning baseline by roughly 8-10 points — a substantial jump, even working from the stopword-stripped input that's suboptimal for transformer models.
+ 
+### Where tuning helped most
+ 
+Optuna tuning (15 trials, optimizing validation macro-F1) improved the negative class specifically — the class that struggled across every single model in this project:
+ 
+| | Baseline DistilBERT | Tuned DistilBERT |
+|---|---|---|
+| Negative recall | 0.85 | 0.89 |
+| Negative misclassifications | 182 / 1238 | 140 / 1238 |
+ 
+Best hyperparameters found: learning rate `4.43e-05`, batch size `32`, `4` epochs, warmup ratio `0.04`, weight decay `0.026`. Across all 15 trials, higher learning rates (3e-05 to 5e-05) and more epochs consistently produced the best results — low learning rates underperformed even with extra epochs to compensate.
+ 
+### Remaining limitations
+ 
+The dominant error pattern, even after tuning, is negative↔positive confusion rather than negative↔neutral — suggesting some comments carry genuinely ambiguous or sarcastic sentiment that's hard to resolve without full negation/context cues, likely compounded by the missing stopwords in the source text.
+ 
+## Setup
+ 
+```bash
+pip install -r requirements.txt
+python -m nltk.downloader stopwords wordnet
 ```
-
----
-
-## Exploratory Data Analysis
-
-Exploratory Data Analysis (EDA) was performed to understand dataset characteristics and identify potential challenges before model development.
-
-Analysis includes:
-
-- Missing value analysis
-- Duplicate analysis
-- Sentiment distribution
-- Comment length distribution
-- Most frequent words
-- Text statistics and visualizations
-
----
-
-## Feature Engineering
-
-### Traditional Machine Learning
-
-Text data was transformed using:
-
-- TF-IDF Vectorization
-- Unigrams and Bigrams
-- Hyperparameter tuning using GridSearchCV
-
-### Deep Learning
-
-Text sequences were prepared using:
-
-- Tokenization
-- Vocabulary creation
-- Sequence padding
-- Embedding layers
-
----
-
-## Machine Learning Models
-
-The following machine learning algorithms were trained and evaluated:
-
-- Multinomial Naive Bayes
-- Logistic Regression
-- Random Forest
-- Linear Support Vector Machine (SVM)
-
-### Best Machine Learning Model
-
-Linear SVM achieved the highest performance among all traditional machine learning models.
-
-#### Linear SVM Classification Report
-
-| Class | Precision | Recall | F1-Score |
-|---------|---------|---------|---------|
-| Negative | 0.83 | 0.69 | 0.76 |
-| Neutral | 0.84 | 0.95 | 0.89 |
-| Positive | 0.89 | 0.87 | 0.88 |
-
-**Overall Accuracy:** 85.45%  
-**Weighted F1 Score:** 85.19%
-
-Notebook:
-
-```text
-02_baseline_model.ipynb
-```
-
----
-
-## Deep Learning Models
-
-### Model 1: Embedding + Dense Neural Network
-
-Architecture:
-
-```text
-Embedding Layer
-        ↓
-GlobalAveragePooling1D
-        ↓
-Dense Layer
-        ↓
-Dropout
-        ↓
-Softmax Output Layer
-```
-
-### Model 2: Embedding + Dense Network with Class Weights
-
-The same architecture was trained using class weights to address class imbalance.
-
-### Model 3: Bidirectional LSTM
-
-Architecture:
-
-```text
-Embedding Layer
-        ↓
-SpatialDropout1D
-        ↓
-Bidirectional LSTM
-        ↓
-Dense Layer
-        ↓
-Dropout
-        ↓
-Softmax Output Layer
-```
-
-Features:
-
-- Sequence modeling
-- Context capture from both directions
-- Early stopping
-- Learning rate scheduling
-- Class weighting
-- Model checkpointing
-
-Notebook:
-
-```text
-03_deeplearning_models.ipynb
-```
-
----
-
-## Model Comparison
-
-| Model | Accuracy |
-|---------|---------|
-| Naive Bayes | 62.06% |
-| Logistic Regression | 83.08% |
-| Random Forest | 79.95% |
-| Embedding + Dense Network | 83.62% |
-| Embedding + Dense Network (Class Weights) | 84.06% |
-| Bidirectional LSTM | 84.37% |
-| Linear SVM | 85.45% |
-
-### Key Findings
-
-- Linear SVM achieved the best overall performance with an accuracy of 85.45%.
-- Deep learning models achieved competitive performance, with Bidirectional LSTM reaching 84.37% accuracy.
-- Applying class weights improved neural network performance from 83.62% to 84.06%.
-- TF-IDF combined with Linear SVM proved highly effective for sentiment classification on this dataset.
-
----
-
-## Technologies Used
-
-### Programming Language
-
-- Python
-
-### Libraries
-
-- NumPy
-- Pandas
-- Matplotlib
-- Seaborn
-- Scikit-learn
-- TensorFlow
-- Keras
-
-### NLP Techniques
-
-- Text Cleaning
-- TF-IDF Vectorization
-- Tokenization
-- Word Embeddings
-- Sequence Padding
-
----
-
-## Workflow
-
-```text
-Raw Reddit Comments
-        ↓
-Data Cleaning
-        ↓
-Exploratory Data Analysis
-        ↓
-Feature Engineering
-        ↓
-Train-Test Split
-        ↓
-Machine Learning Models
-        ↓
-Deep Learning Models
-        ↓
-Evaluation and Comparison
-```
-
----
-
-## Trained Models
-
-Trained model files are not included in this repository due to GitHub file size limitations.
-
-The models can be reproduced by running the notebooks in the following order:
-
-```text
-1. 01_eda_preprocessing.ipynb
-2. 02_baseline_model.ipynb
-3. 03_deeplearning_models.ipynb
-```
-
----
-
-## Future Work
-
-- Fine-tuning transformer-based models such as DistilBERT and BERT
-- Hyperparameter optimization
-- Cross-validation experiments
-- Model deployment using FastAPI
-- Real-time sentiment analysis applications
-
+ 
+GPU is required for practical training time on notebook 04 (run on Kaggle/Colab with a T4 or better). PyTorch installs as CPU-only by default via pip; for GPU training, install the CUDA build per [pytorch.org](https://pytorch.org/get-started/locally/).
+ 
+## Model weights
+ 
+Trained model weights are not included in this repo due to size (DistilBERT checkpoints are ~250MB). The notebook can be re-run to reproduce them, or the model can be hosted separately on Hugging Face Hub if needed.
+ 
+## Tech stack
+ 
+- **Classical ML:** scikit-learn (TF-IDF, Linear SVM, GridSearchCV)
+- **Deep learning:** TensorFlow / Keras (ANN, BiLSTM)
+- **Transformers:** PyTorch, Hugging Face `transformers` + `datasets` + `Trainer`
+- **Hyperparameter tuning:** Optuna
